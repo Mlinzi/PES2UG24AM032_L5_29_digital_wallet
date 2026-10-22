@@ -1,5 +1,35 @@
 # Lab 5: Static Code Analysis — Digital Wallet & Payment Tracker
 
+## Completed lab: PES2UG24AM032 — Ashrit Nair
+
+The cleaned program reads credentials from the environment. To run on Windows
+PowerShell (the values below are for the local classroom demo only):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+$env:WALLET_PIN = "4321"
+$env:GATEWAY_SECRET = "local-demo-key"
+.\.venv\Scripts\python.exe digital_wallet.py
+```
+
+Run the final analysis with:
+
+```powershell
+.\.venv\Scripts\python.exe -m pylint --persistent=n digital_wallet.py
+.\.venv\Scripts\python.exe -m bandit -r digital_wallet.py
+.\.venv\Scripts\python.exe -m flake8 digital_wallet.py
+```
+
+Before-and-after reports are under `reports/before/` and `reports/after/`.
+An empty Flake8 report means no findings; see `reports/after/verification.txt`
+for execution-check results. The demo preserves the original output except for
+the random OTP: final balance is 1900.0 and total credits are 2500.
+`issues.md` documents fixes. `reflection.md` contains draft reflections because
+the supplied handout omits the four questions mentioned below.
+
+The original assignment instructions follow.
+
 **Your file:** `digital_wallet.py`
 
 Follow the lab handout for the full instructions.

@@ -1,0 +1,5 @@
+PASS: demo matches baseline except random OTP; OTP is six digits.
+PASS: valid payment; negative, zero, over-limit and wrong-PIN rejections preserve state.
+PASS: explicit log isolation, rejected top-up, invalid limit, gateway match/mismatch.
+PASS: zero-count statement; secure receipt file exists and can be deleted; PIN hash comparisons.
+All three static-analysis commands exited 0.

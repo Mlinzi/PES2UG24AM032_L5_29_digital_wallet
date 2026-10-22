@@ -1,3 +1,5 @@
+"""Demonstrate wallet payments and static-analysis improvements."""
+
 import hashlib
 import hmac
 import os
@@ -8,39 +10,45 @@ from datetime import datetime
 GATEWAY_SECRET = os.environ.get("GATEWAY_SECRET")
 WALLET_PIN = os.environ.get("WALLET_PIN")
 PIN_SALT = secrets.token_bytes(16)
-wallet = {"balance": 0.0}
-daily_limit = 1000
+wallet = {"balance": 0.0, "daily_limit": 1000}
 transactions = []
 
 
-def hashPin(pin):
+def hash_pin(pin):
+    """Derive a PIN hash with PBKDF2 and a process-local random salt."""
     return hashlib.pbkdf2_hmac(
         "sha256", pin.encode(), PIN_SALT, 600_000
     ).hex()
 
 
-def addMoney(amount, source="UPI", log=[]):
+def add_money(amount, source="UPI", log=None):
+    """Credit a positive amount and optionally append it to a caller log."""
     if amount <= 0:
         return False
     wallet["balance"] += amount
     transactions.append({"type": "credit", "amount": amount, "party": source,
                          "time": datetime.now().isoformat()})
-    log.append(amount)
+    if log is not None:
+        log.append(amount)
     return True
 
 
-def setDailyLimit(newLimit):
-    global daily_limit
-    daily_limit = newLimit
+def set_daily_limit(new_limit):
+    """Set the positive payment limit used by this wallet demo."""
+    if new_limit <= 0:
+        raise ValueError("Daily limit must be positive")
+    wallet["daily_limit"] = new_limit
 
 
-def payMerchant(merchant, amount, pin):
+def pay_merchant(merchant, amount, pin):
+    """Authorize a positive payment within the balance and payment limit."""
     if WALLET_PIN is None or not hmac.compare_digest(
-        hashPin(pin), hashPin(WALLET_PIN)
+        hash_pin(pin), hash_pin(WALLET_PIN)
     ):
         print("Wrong PIN for payment to", merchant)
         return False
-    if amount > wallet["balance"] or amount > daily_limit:
+    if (amount <= 0 or amount > wallet["balance"]
+            or amount > wallet["daily_limit"]):
         print("Payment to", merchant, "declined")
         return False
     wallet["balance"] -= amount
@@ -49,44 +57,52 @@ def payMerchant(merchant, amount, pin):
     return True
 
 
-def miniStatement(count=3):
+def mini_statement(count=3):
+    """Print the most recent transactions for a positive count."""
+    if count <= 0:
+        return
     for entry in transactions[-count:]:
         print(entry["type"], entry["amount"], entry["party"])
 
 
-def cashbackFor(amount, merchantType):
+def cashback_for(amount):
+    """Return the uniform two-percent cashback amount."""
     return round(amount * 0.02, 2)
 
 
-def checkGateway(secret):
+def check_gateway(secret):
+    """Compare a gateway key against the configured secret."""
     return GATEWAY_SECRET is not None and hmac.compare_digest(
         secret, GATEWAY_SECRET
     )
 
 
-def receiptPath():
+def receipt_path():
+    """Create a receipt file securely; the caller must delete it."""
     # Helper kept for the lab: not called by the demo
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as receipt:
         return receipt.name
 
 
 def main():
+    """Run the wallet demonstration with credentials from the environment."""
     if not WALLET_PIN or not GATEWAY_SECRET:
         raise ValueError("Set WALLET_PIN and GATEWAY_SECRET before running")
     otp = secrets.randbelow(900000) + 100000
     print("OTP sent:", otp)
-    addMoney(2000)
-    addMoney(500, "Card")
-    addMoney(-10)
-    setDailyLimit(1500)
-    payMerchant("Coffee Corner", 180, WALLET_PIN)
-    payMerchant("Book Store", 5000, WALLET_PIN)
-    payMerchant("Grocery Mart", 350, WALLET_PIN + "x")
-    payMerchant("Pharmacy", 420, WALLET_PIN)
-    miniStatement()
-    print("Cashback on 420:", cashbackFor(420, "health"))
-    print("Gateway check:", checkGateway("wrong")) # should be False
+    add_money(2000)
+    add_money(500, "Card")
+    add_money(-10)
+    set_daily_limit(1500)
+    pay_merchant("Coffee Corner", 180, WALLET_PIN)
+    pay_merchant("Book Store", 5000, WALLET_PIN)
+    pay_merchant("Grocery Mart", 350, WALLET_PIN + "x")
+    pay_merchant("Pharmacy", 420, WALLET_PIN)
+    mini_statement()
+    print("Cashback on 420:", cashback_for(420))
+    print("Gateway check:", check_gateway("wrong")) # should be False
     print("Final balance: Rs.", wallet["balance"])
-    creditAmounts=[t["amount"] for t in transactions if t["type"] == "credit"]
-    print("Total credited:",sum(creditAmounts))
-main()
+    credit_amounts=[t["amount"] for t in transactions if t["type"] == "credit"]
+    print("Total credited:",sum(credit_amounts))
+if __name__ == "__main__":
+    main()
